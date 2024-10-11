@@ -183,31 +183,7 @@ class AudioSegment(object):
 
         audio_params = (self.sample_width, self.frame_rate, self.channels)
 
-        if isinstance(data, array.array):
-            try:
-                data = data.tobytes()
-            except:
-                data = data.tostring()
-
-        # prevent partial specification of arguments
-        if any(audio_params) and None in audio_params:
-            raise MissingAudioParameter("Either all audio parameters or no parameter must be specified")
-
-        # all arguments are given
-        elif self.sample_width is not None:
-            if len(data) % (self.sample_width * self.channels) != 0:
-                raise ValueError("data length must be a multiple of '(sample_width * channels)'")
-
-            self.frame_width = self.channels * self.sample_width
-            self._data = data
-
-        # keep support for 'metadata' until audio params are used everywhere
-        elif kwargs.get('metadata', False):
-            # internal use only
-            self._data = data
-            for attr, val in kwargs.pop('metadata').items():
-                setattr(self, attr, val)
-        else:
+        if not any(audio_params):
             # normal construction
             try:
                 data = data if isinstance(data, (basestring, bytes)) else data.read()
@@ -218,6 +194,10 @@ class AudioSegment(object):
                     d += reader
                     reader = data.read(2 ** 31 - 1)
                 data = d
+            else:
+                raise MissingAudioParameter("If no parameter is " + \
+                    "specified, data must be either either wav file " + \
+                    "object or a wav binary.")
 
             wav_data = read_wav_audio(data)
             if not wav_data:
@@ -231,6 +211,45 @@ class AudioSegment(object):
             if self.sample_width == 1:
                 # convert from unsigned integers in wav
                 self._data = audioop.bias(self._data, 1, -128)
+
+        # prevent partial specification of arguments
+        elif None in audio_params:
+            raise MissingAudioParameter("Either all audio parameters or no parameter must be specified")
+
+        else:
+            # keep support for 'metadata' until audio params are used everywhere
+            if kwargs.get('metadata', False):
+                # internal use only
+                for attr, val in kwargs.pop('metadata').items():
+                    setattr(self, attr, val)
+
+            if isinstance(data, array.array):
+                if data.typecode == 'd':
+                    data = array.array('f', map(data, float))
+                if data.typecode == 'f':
+                    data -= min(data)
+                    data /= (max(data) / 2)
+                    data -= 1
+                    self._waveform = data
+                    data *= 2 ** (self.sample_width * 8 - 1)
+                    if self.sample_width == 1:
+                        word_format = 'c'
+                    if self.sample_width == 2:
+                        word_format = 'h'
+                    if self.sample_width == 4:
+                        word_format = 'i'
+                    data = array.array(word_format, map(data, int))
+                    format = '<' + word_format * len(data)
+                try:
+                    data = data.tobytes()
+                except:
+                    data = data.tostring()
+
+            if len(data) % (self.sample_width * self.channels) != 0:
+                raise ValueError("data length must be a multiple of '(sample_width * channels)'")
+
+            self.frame_width = self.channels * self.sample_width
+            self._data = data
 
         # Convert 24-bit audio to 32-bit audio.
         # (stdlib audioop and array modules do not support 24-bit data)
@@ -255,6 +274,23 @@ class AudioSegment(object):
             self.sample_width = 4
             self.frame_width = self.channels * self.sample_width
 
+        # compute the waveform from the binary data
+        if not hasattr(self, "_waveform"):
+            if self.sample_width == 1:
+                word_format = 'c'
+            if self.sample_width == 2:
+                word_format = 'h'
+            if self.sample_width == 4:
+                word_format = 'i'
+            format = '<' + word_format * len(data) // self.sample_width
+            waveform = struct.unpack(format, data)
+            waveform /= 2 ** (self.sample_width * 8 - 1)
+            waveform = array.array('f', waveform)
+            waveform -= min(waveform)
+            waveform /= (max(waveform) / 2)
+            waveform -= 1.0
+            self._waveform = waveform
+
         super(AudioSegment, self).__init__(*args, **kwargs)
 
     @property
@@ -263,6 +299,14 @@ class AudioSegment(object):
         public access to the raw audio data as a bytestring
         """
         return self._data
+
+    @property
+    def waveform(self):
+        """
+        public access to the waveform
+        """
+
+        return self._waveform
 
     def get_array_of_samples(self, array_type_override=None):
         """
