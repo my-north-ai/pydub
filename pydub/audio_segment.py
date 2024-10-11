@@ -240,7 +240,7 @@ class AudioSegment(object):
                 self._waveform = data
                 data *= 2 ** (self.sample_width * 8 - 1)
                 data.astype(int)
-                if data.shape[0] == self.n_channels:
+                if data.shape[0] == self.channels:
                     data = data.ravel(order='F')
                 else:
                     data = data.ravel()
@@ -284,7 +284,7 @@ class AudioSegment(object):
                 waveform = from_buffer(self._data, dtype=int16)
             if self.sample_width == 4:
                 waveform = from_buffer(self._data, dtype=int32)
-            waveform = waveform.reshape(-1, self.n_channels)
+            waveform = waveform.reshape(-1, self.channels)
             waveform /= 2 ** (self.sample_width * 8 - 1)
             waveform -= min(waveform)
             waveform /= (max(waveform) / 2)
@@ -1426,6 +1426,19 @@ class AudioSegment(object):
     def reverse(self):
         return self._spawn(
             data=audioop.reverse(self._data, self.sample_width)
+        )
+
+    def resample(self, target_frame_rate, method="soxr_hq"):
+        return self._spawn(
+            data=resample(
+                self._waveform,
+                self.frame_rate,
+                target_frame_rate,
+                method
+            ),
+            sample_width=self.sample_width,
+            frame_rate=target_frame_rate,
+            channels=self.channels
         )
 
     def _repr_html_(self):
