@@ -239,11 +239,8 @@ class AudioSegment(object):
                 data -= 1
                 self._waveform = data
                 data *= 2 ** (self.sample_width * 8 - 1)
-                data.astype(int)
-                if data.shape[0] == self.channels:
-                    data = data.ravel(order='F')
-                else:
-                    data = data.ravel()
+                data = data.astype(int)
+                data = data.ravel()
                 format = '<' + word_format * len(data)
                 data = struct.pack(format, *data)
 
