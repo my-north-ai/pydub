@@ -12,6 +12,9 @@ from .utils import mediainfo_json, fsdecode
 import base64
 from collections import namedtuple
 
+from numpy import ndarray, int8, int16, int32
+from librosa import resample
+
 try:
     from StringIO import StringIO
 except:
@@ -217,6 +220,7 @@ class AudioSegment(object):
             raise MissingAudioParameter("Either all audio parameters or no parameter must be specified")
 
         else:
+
             # keep support for 'metadata' until audio params are used everywhere
             if kwargs.get('metadata', False):
                 # internal use only
@@ -224,26 +228,24 @@ class AudioSegment(object):
                     setattr(self, attr, val)
 
             if isinstance(data, array.array):
-                if data.typecode == 'd':
-                    data = array.array('f', map(data, float))
-                if data.typecode == 'f':
-                    data -= min(data)
-                    data /= (max(data) / 2)
-                    data -= 1
-                    self._waveform = data
-                    data *= 2 ** (self.sample_width * 8 - 1)
-                    if self.sample_width == 1:
-                        word_format = 'c'
-                    if self.sample_width == 2:
-                        word_format = 'h'
-                    if self.sample_width == 4:
-                        word_format = 'i'
-                    data = array.array(word_format, map(data, int))
-                    format = '<' + word_format * len(data)
                 try:
                     data = data.tobytes()
                 except:
                     data = data.tostring()
+
+            if isinstance(data, ndarray):
+                data -= min(data)
+                data /= (max(data) / 2)
+                data -= 1
+                self._waveform = data
+                data *= 2 ** (self.sample_width * 8 - 1)
+                data.astype(int)
+                if data.shape[0] == self.n_channels:
+                    data = data.ravel(order='F')
+                else:
+                    data = data.ravel()
+                format = '<' + word_format * len(data)
+                data = struct.pack(format, *data)
 
             if len(data) % (self.sample_width * self.channels) != 0:
                 raise ValueError("data length must be a multiple of '(sample_width * channels)'")
@@ -277,15 +279,13 @@ class AudioSegment(object):
         # compute the waveform from the binary data
         if not hasattr(self, "_waveform"):
             if self.sample_width == 1:
-                word_format = 'c'
+                waveform = from_buffer(self._data, dtype=int8)
             if self.sample_width == 2:
-                word_format = 'h'
+                waveform = from_buffer(self._data, dtype=int16)
             if self.sample_width == 4:
-                word_format = 'i'
-            format = '<' + word_format * len(data) // self.sample_width
-            waveform = struct.unpack(format, data)
+                waveform = from_buffer(self._data, dtype=int32)
+            waveform = waveform.reshape(-1, self.n_channels)
             waveform /= 2 ** (self.sample_width * 8 - 1)
-            waveform = array.array('f', waveform)
             waveform -= min(waveform)
             waveform /= (max(waveform) / 2)
             waveform -= 1.0
@@ -305,7 +305,6 @@ class AudioSegment(object):
         """
         public access to the waveform
         """
-
         return self._waveform
 
     def get_array_of_samples(self, array_type_override=None):
