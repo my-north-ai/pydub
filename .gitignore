@@ -10,3 +10,7 @@ env
 
 /build/
 .remote-sync.json
+
+/test/tmp.py
+/test/data/*_movement.m4a
+.venv/
