@@ -1153,6 +1153,15 @@ class SilenceTests(unittest.TestCase):
             self.assertTrue(start > prev_end)
             prev_end = end
 
+    def test_waveform_initiation(self):
+        pass
+
+    def test_waveform_import(self):
+            pass
+
+    def test_waveform_authenticity(self):
+        pass
+
 
 class GeneratorTests(unittest.TestCase):
 
