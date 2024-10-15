@@ -12,7 +12,7 @@ from .utils import mediainfo_json, fsdecode
 import base64
 from collections import namedtuple
 
-from numpy import ndarray, frombuffer, int8, int16, int32
+from numpy import ndarray, frombuffer, uint8, uint16, uint32
 from librosa import resample
 
 try:
@@ -281,14 +281,14 @@ class AudioSegment(object):
 
     def data_to_waveform(self, data):
         if self.sample_width == 1:
-            waveform = frombuffer(data, dtype=int8)
+            waveform = frombuffer(data, dtype=uint8)
         if self.sample_width == 2:
-            waveform = frombuffer(data, dtype=int16)
+            waveform = frombuffer(data, dtype=uint16)
         if self.sample_width == 4:
-            waveform = frombuffer(data, dtype=int32)
+            waveform = frombuffer(data, dtype=uint32)
         waveform = waveform.astype(float)
         waveform = waveform.reshape(-1, self.channels)
-        waveform /= 2 ** (self.sample_width * 8 - 1)
+        waveform /= 2 ** (self.sample_width * 8) - 1
         waveform = self.normalize_waveform(waveform)
         return waveform
 
@@ -296,16 +296,16 @@ class AudioSegment(object):
         waveform = waveform.ravel()
         waveform = (waveform + 1.0) / 2.0
         waveform *= 2 ** (self.sample_width * 8) - 1
-        waveform -= 2 ** (self.sample_width * 8 - 1)
+        #waveform -= 2 ** (self.sample_width * 8 - 1)
         if self.sample_width == 1:
-            word_format = 'c'
-            waveform = waveform.astype(int8)
+            word_format = 'B'
+            waveform = waveform.astype(uint8)
         if self.sample_width == 2:
-            word_format = 'h'
-            waveform = waveform.astype(int16)
+            word_format = 'H'
+            waveform = waveform.astype(uint16)
         if self.sample_width == 4:
-            word_format = 'i'
-            waveform = waveform.astype(int32)
+            word_format = 'I'
+            waveform = waveform.astype(uint32)
         format = '<' + word_format * len(waveform)
         data = struct.pack(format, *waveform)
         return data
