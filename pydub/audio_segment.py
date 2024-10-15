@@ -234,23 +234,8 @@ class AudioSegment(object):
 
             # all arguments are given
             if isinstance(data, ndarray):
-                data -= data.min()
-                data /= data.max()
-                self._waveform = 2.0 * data - 1.0
-                data *= 2 ** (self.sample_width * 8) - 1
-                data = data.ravel()
-                data -= 2 ** (self.sample_width * 8 - 1)
-                if self.sample_width == 1:
-                    word_format = 'c'
-                    data = data.astype(int8)
-                if self.sample_width == 2:
-                    word_format = 'h'
-                    data = data.astype(int16)
-                if self.sample_width == 4:
-                    word_format = 'i'
-                    data = data.astype(int32)
-                format = '<' + word_format * len(data)
-                data = struct.pack(format, *data)
+                self._waveform = self.normalize_waveform(data)
+                data = self.waveform_to_data(self._waveform)
 
             if len(data) % (self.sample_width * self.channels) != 0:
                 raise ValueError("data length must be a multiple of '(sample_width * channels)'")
@@ -283,21 +268,47 @@ class AudioSegment(object):
 
         # compute the waveform from the binary data
         if not hasattr(self, "_waveform"):
-            if self.sample_width == 1:
-                waveform = frombuffer(self._data, dtype=int8)
-            if self.sample_width == 2:
-                waveform = frombuffer(self._data, dtype=int16)
-            if self.sample_width == 4:
-                waveform = frombuffer(self._data, dtype=int32)
-            waveform = waveform.astype(float)
-            waveform = waveform.reshape(-1, self.channels)
-            waveform /= 2 ** (self.sample_width * 8 - 1)
-            waveform -= waveform.min()
-            waveform /= (waveform.max() / 2)
-            waveform -= 1.0
-            self._waveform = waveform
+            self._waveform = self.data_to_waveform(self._data)
 
+        self._data = self.waveform_to_data(self._waveform)
         super(AudioSegment, self).__init__(*args, **kwargs)
+
+    @classmethod
+    def normalize_waveform(cls, waveform):
+        waveform -= waveform.min()
+        waveform /= waveform.max()
+        return 2.0 * waveform - 1.0
+
+    def data_to_waveform(self, data):
+        if self.sample_width == 1:
+            waveform = frombuffer(data, dtype=int8)
+        if self.sample_width == 2:
+            waveform = frombuffer(data, dtype=int16)
+        if self.sample_width == 4:
+            waveform = frombuffer(data, dtype=int32)
+        waveform = waveform.astype(float)
+        waveform = waveform.reshape(-1, self.channels)
+        waveform /= 2 ** (self.sample_width * 8 - 1)
+        waveform = self.normalize_waveform(waveform)
+        return waveform
+
+    def waveform_to_data(self, waveform):
+        waveform = waveform.ravel()
+        waveform = (waveform + 1.0) / 2.0
+        waveform *= 2 ** (self.sample_width * 8) - 1
+        waveform -= 2 ** (self.sample_width * 8 - 1)
+        if self.sample_width == 1:
+            word_format = 'c'
+            waveform = waveform.astype(int8)
+        if self.sample_width == 2:
+            word_format = 'h'
+            waveform = waveform.astype(int16)
+        if self.sample_width == 4:
+            word_format = 'i'
+            waveform = waveform.astype(int32)
+        format = '<' + word_format * len(waveform)
+        data = struct.pack(format, *waveform)
+        return data
 
     @property
     def raw_data(self):
