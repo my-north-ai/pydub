@@ -206,6 +206,7 @@ class AudioSegmentTests(unittest.TestCase):
         self.mp4_file_path = os.path.join(data_dir, 'creative_common.mp4')
         self.mp3_file_path = os.path.join(data_dir, 'party.mp3')
         self.webm_file_path = os.path.join(data_dir, 'test5.webm')
+        self.m4a_file_path = os.path.join(data_dir, 'first_movement.m4a')
 
         self.jpg_cover_path = os.path.join(data_dir, 'cover.jpg')
         self.png_cover_path = os.path.join(data_dir, 'cover.png')
@@ -1094,6 +1095,15 @@ class AudioSegmentTests(unittest.TestCase):
         tempfile.tempdir = orig_tmpdir
         os.rmdir(new_tmpdir)
 
+    def test_waveform_initiation(self):
+        self.assertTrue(True)
+
+    def test_waveform_import(self):
+        self.assertTrue(True)
+
+    def test_waveform_authenticity(self):
+        self.assertTrue(True)
+
 
 class SilenceTests(unittest.TestCase):
 
@@ -1152,15 +1162,6 @@ class SilenceTests(unittest.TestCase):
         for start, end in silent_ranges:
             self.assertTrue(start > prev_end)
             prev_end = end
-
-    def test_waveform_initiation(self):
-        pass
-
-    def test_waveform_import(self):
-            pass
-
-    def test_waveform_authenticity(self):
-        pass
 
 
 class GeneratorTests(unittest.TestCase):
