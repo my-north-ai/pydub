@@ -11,6 +11,9 @@ from tempfile import TemporaryFile
 from warnings import warn
 from functools import wraps
 
+from numpy import ndarray, ones, zeros, dot, int64, argmin
+from numpy import transpose, arange
+
 try:
     import audioop
 except ImportError:
@@ -438,3 +441,47 @@ def ms_to_stereo(audio_segment):
 	channel = [channel[0].overlay(channel[1]) - 3, channel[0].overlay(channel[1].invert_phase()) - 3]
 	return AudioSegment.from_mono_audiosegments(channel[0], channel[1])
 
+def convolve(amplitudes: ndarray, width: int, offset: int) -> ndarray:
+    """
+    Performs an overlapped convolution of the amplitudes array (contains the
+    volume of each audio sample) with a fized-width filter. The minimum of the
+    resulting values is the most silent period of width-duration in the audio.
+    """
+
+    step = width - offset
+    convolution_length = (len(amplitudes) - offset) // step
+    convolved_amplitudes = zeros(convolution_length)
+
+    filter = ones(width)
+    for i in range(0, convolution_length):
+        lower = i * step
+        upper = width + i * step
+        convolved_amplitudes[i] = dot(amplitudes[lower: upper], filter)
+
+    mapping = zeros(convolution_length, dtype=int64)
+    mapping[0] = width // 2
+    for i in range(1, convolution_length):
+        mapping[i] = mapping[i - 1] + step
+
+    return convolved_amplitudes, mapping
+
+def get_silence(
+    convolved_amplitudes: ndarray,
+    mapping: ndarray,
+    mid_point_lower_bound: int,
+    mid_point_upper_bound: int
+    ):
+    """
+    Finds the index of the waveform corresponding to the most silent period of
+    width-duration in a segment of the waveform between
+    [mid_point_lower_bound, mid_point_upper_bound].
+    """
+
+    for i, left in enumerate(mapping):
+        if left > mid_point_lower_bound:
+            break
+    for j, right in enumerate(reversed(mapping)):
+        if right < mid_point_upper_bound:
+            break
+    silence = argmin(convolved_amplitudes[i:-j - 1])
+    return mapping[silence + i]
