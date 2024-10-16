@@ -6,8 +6,6 @@ speech audio data.
 from numpy import ndarray, ones, zeros, dot, int64, argmin
 from numpy import transpose, arange
 
-from uniplot import plot
-
 from .utils import convolve, get_silence
 from .audio_segment import AudioSegment
 
@@ -17,6 +15,21 @@ class SpeechSegment(AudioSegment):
 
         super().__init__(data, *args, **kwargs)
 
+    def naive_partition(self, max_size):
+        """
+        Partition the audios in chuncks of max_size.
+        max_size: int (in bytes)
+        """
+
+        max_frames = max_size // self.frame_width
+        n_partitions = (int(self.frame_count()) // max_frames) + 1
+        internal_max_length = int(self.frame_count() / n_partitions) + 1
+        for i in range(n_partitions):
+            i *= internal_max_length
+            waveform = self._waveform[i : i + internal_max_length]
+            segment = self._spawn(data = waveform)
+            yield segment
+
     def partition(self, max_size):
         """
         Partitions audio segments in moments of silence according to a 
@@ -24,9 +37,9 @@ class SpeechSegment(AudioSegment):
         max_size: int (in bytes)
         """
         
-        if self.frame_count() * self.sample_width >= max_size:
+        if self.frame_count() * self.frame_width > max_size:
 
-            max_length = max_size / self.sample_width
+            max_length = max_size / self.frame_width
             conv_width = 1 + self.frame_rate // 2
             conv_offset = self.frame_rate // 8
             slack = max_length // 4
@@ -66,10 +79,7 @@ class SpeechSegment(AudioSegment):
             # partition the waveform
             for i in range(len(cut_points) - 1):
                 waveform = self._waveform[cut_points[i]: cut_points[i + 1]]
-                segment = self._spawn(
-                    data = waveform,
-                    overrides={"channels": 1}
-                )
+                segment = self._spawn(data = waveform)
                 yield segment
         else:
             yield self

@@ -11,8 +11,4 @@ env
 /build/
 .remote-sync.json
 
-/test/tmp.py
-/test/data/saved_*
-/test/data/*_movement.m4a
-/test/data/gettysburg*
 .venv/
