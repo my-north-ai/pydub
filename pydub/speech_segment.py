@@ -17,15 +17,19 @@ class SpeechSegment(AudioSegment):
 
         super().__init__(data, *args, **kwargs)
 
-    def naive_partition(self, max_size):
+    def naive_partition(self, max_size, format=None):
         """
         Partition the audios in chuncks of max_size.
         max_size: int (in bytes)
         """
 
-        max_frames = max_size // self.frame_width
-        n_partitions = (int(self.frame_count()) // max_frames) + 1
-        internal_max_length = int(self.frame_count() / n_partitions) + 1
+        if format is None:
+            n_partitions = ceil(len(self.raw_data) / max_size)
+        else:
+            size = len(self.export(format=format).read())
+            n_partitions = ceil(size / max_size)
+
+        internal_max_length = ceil(self.frame_count() / n_partitions)
         for i in range(n_partitions):
             i *= internal_max_length
             waveform = self._waveform[i : i + internal_max_length]
