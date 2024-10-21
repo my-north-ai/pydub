@@ -924,7 +924,7 @@ class AudioSegment(object):
                     'specify an ffmpeg raw format like format="s16le" instead '
                     'or call export(format="raw") with no codec or parameters')
 
-        out_f, _ = _fd_or_path_or_tempfile(out_f, 'wb+')
+        out_f, _ = _fd_or_path_or_tempfile(out_f, 'wb+', format=format)
         out_f.seek(0)
 
         if format == "raw":
