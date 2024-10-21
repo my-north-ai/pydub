@@ -54,10 +54,12 @@ def get_min_max_value(bit_depth):
     return ARRAY_RANGES[bit_depth]
 
 
-def _fd_or_path_or_tempfile(fd, mode='w+b', tempfile=True):
+def _fd_or_path_or_tempfile(fd, mode='w+b', tempfile=True, format=None):
     close_fd = False
     if fd is None and tempfile:
-        fd = TemporaryFile(mode=mode)
+	if isinstance(format, str):
+		format = f".{format}"
+        fd = TemporaryFile(mode=mode, suffix=format)
         close_fd = True
 
     if isinstance(fd, basestring):
